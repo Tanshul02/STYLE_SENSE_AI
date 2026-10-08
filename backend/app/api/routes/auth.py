@@ -10,10 +10,21 @@ from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+def _safe_json_loads(val, default):
+    if not val:
+        return default
+    if isinstance(val, list):
+        return val
+    try:
+        return json.loads(val)
+    except Exception:
+        return default
+
 @router.post("/signup", response_model=TokenResponse)
 def signup(data: UserRegister, db: Session = Depends(get_db)):
     repo = UserRepository(db)
-    if repo.get_by_email(data.email):
+    existing = repo.get_by_email(data.email)
+    if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
         
     user = Profile(
@@ -26,7 +37,9 @@ def signup(data: UserRegister, db: Session = Depends(get_db)):
         fashion_goals=json.dumps(["Elevate daily style", "Curate capsule wardrobe"])
     )
     saved = repo.create(user)
-    token = create_access_token({"sub": saved.id, "email": saved.email})
+    # Pass clean subject string (email or id), NOT nested dictionary
+    token = create_access_token(str(saved.email))
+    
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -35,9 +48,9 @@ def signup(data: UserRegister, db: Session = Depends(get_db)):
             "full_name": saved.full_name,
             "email": saved.email,
             "avatar_url": saved.avatar_url,
-            "style_preferences": json.loads(saved.style_preferences),
-            "favorite_colors": json.loads(saved.favorite_colors),
-            "fashion_goals": json.loads(saved.fashion_goals),
+            "style_preferences": _safe_json_loads(saved.style_preferences, ["Casual", "Elegant"]),
+            "favorite_colors": _safe_json_loads(saved.favorite_colors, ["Black", "Ivory"]),
+            "fashion_goals": _safe_json_loads(saved.fashion_goals, ["Elevate daily style"]),
         }
     }
 
@@ -48,7 +61,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         
-    token = create_access_token({"sub": user.id, "email": user.email})
+    # Pass clean subject string (email or id), NOT nested dictionary
+    token = create_access_token(str(user.email))
+    
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -57,9 +72,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             "full_name": user.full_name,
             "email": user.email,
             "avatar_url": user.avatar_url,
-            "style_preferences": json.loads(user.style_preferences),
-            "favorite_colors": json.loads(user.favorite_colors),
-            "fashion_goals": json.loads(user.fashion_goals),
+            "style_preferences": _safe_json_loads(user.style_preferences, ["Casual", "Elegant"]),
+            "favorite_colors": _safe_json_loads(user.favorite_colors, ["Black", "Ivory"]),
+            "fashion_goals": _safe_json_loads(user.fashion_goals, ["Elevate daily style"]),
         }
     }
 
@@ -70,9 +85,9 @@ def get_profile(current_user: Profile = Depends(get_current_user)):
         full_name=current_user.full_name,
         email=current_user.email,
         avatar_url=current_user.avatar_url,
-        style_preferences=json.loads(current_user.style_preferences),
-        favorite_colors=json.loads(current_user.favorite_colors),
-        fashion_goals=json.loads(current_user.fashion_goals),
+        style_preferences=_safe_json_loads(current_user.style_preferences, ["Casual"]),
+        favorite_colors=_safe_json_loads(current_user.favorite_colors, ["Black"]),
+        fashion_goals=_safe_json_loads(current_user.fashion_goals, ["Elevate style"]),
         created_at=current_user.created_at
     )
 
@@ -88,8 +103,8 @@ def update_preferences(data: UserPreferencesUpdate, current_user: Profile = Depe
         full_name=updated.full_name,
         email=updated.email,
         avatar_url=updated.avatar_url,
-        style_preferences=json.loads(updated.style_preferences),
-        favorite_colors=json.loads(updated.favorite_colors),
-        fashion_goals=json.loads(updated.fashion_goals),
+        style_preferences=_safe_json_loads(updated.style_preferences, []),
+        favorite_colors=_safe_json_loads(updated.favorite_colors, []),
+        fashion_goals=_safe_json_loads(updated.fashion_goals, []),
         created_at=updated.created_at
     )
