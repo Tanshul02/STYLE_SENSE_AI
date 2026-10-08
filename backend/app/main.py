@@ -30,13 +30,23 @@ app = FastAPI(
 )
 
 # CORS configuration
+origins = [
+    "https://stylesenseai-7fa63.web.app",
+    "https://stylesenseai-7fa63.firebaseapp.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Telemetry Middleware for Cloud Computing demonstration
 @app.middleware("http")
