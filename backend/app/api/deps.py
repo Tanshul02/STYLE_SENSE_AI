@@ -3,11 +3,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import decode_access_token
-from app.models.models import Profile, User
+from app.models.models import Profile
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Profile:
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -31,32 +31,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 1. Try finding in Profile table (used across cart/wardrobe)
     profile = None
-    if str(sub).isdigit():
-        profile = db.query(Profile).filter(Profile.id == int(sub)).first()
+    sub_str = str(sub)
+
+    # 1. Look up by email
+    profile = db.query(Profile).filter(Profile.email == sub_str).first()
+    
+    # 2. Look up by ID (supports string UUID or numeric ID)
     if not profile:
-        profile = db.query(Profile).filter(Profile.email == str(sub)).first()
+        profile = db.query(Profile).filter(Profile.id == sub_str).first()
+    if not profile and sub_str.isdigit():
+        profile = db.query(Profile).filter(Profile.id == int(sub_str)).first()
+
     if not profile:
-        profile = db.query(Profile).filter(Profile.id == str(sub)).first()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    if profile:
-        return profile
-
-    # 2. Fallback to User table if models are separate
-    user = None
-    if str(sub).isdigit():
-        user = db.query(User).filter(User.id == int(sub)).first()
-    if not user:
-        user = db.query(User).filter(User.email == str(sub)).first()
-    if not user:
-        user = db.query(User).filter(User.id == str(sub)).first()
-
-    if user:
-        return user
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="User not found",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    return profile
