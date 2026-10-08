@@ -3,9 +3,8 @@ import hmac
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union
-import jwt
+from jose import jwt
 
-# Fallback secret key if not set in environment
 SECRET_KEY = os.getenv("SECRET_KEY", "stylesense-super-secret-key-cloud-2026")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
@@ -20,7 +19,6 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         if "$" not in hashed_password:
-            # Handle legacy simple sha256 hashes if any exist
             return hashlib.sha256(plain_password.encode("utf-8")).hexdigest() == hashed_password
         salt, pwd_hash = hashed_password.split("$", 1)
         check_hash = hashlib.pbkdf2_hmac(
