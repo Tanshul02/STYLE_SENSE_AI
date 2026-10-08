@@ -42,15 +42,16 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-
-
-# Telemetry Middleware for Cloud Computing demonstration
+# Telemetry Middleware (skips OPTIONS preflight checks so CORS never breaks)
 @app.middleware("http")
 async def telemetry_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     record_api_request()
     response = await call_next(request)
     return response
