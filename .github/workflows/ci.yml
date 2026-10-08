@@ -1,0 +1,70 @@
+name: StyleSense AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-testing:
+    name: Backend Linting & Pytest Suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pydantic-settings
+
+      - name: Execute Pytest Suite
+        run: |
+          cd backend
+          python -m pytest --verbose
+
+  frontend-testing:
+    name: Frontend Lint & Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build Production Bundle
+        run: |
+          cd frontend
+          npm run build
+
+  docker-validation:
+    name: Docker Container Build Verification
+    needs: [backend-testing, frontend-testing]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Validate Backend Docker Build
+        run: docker build -t stylesense-backend:test ./backend
+
+      - name: Validate Frontend Docker Build
+        run: docker build -t stylesense-frontend:test ./frontend

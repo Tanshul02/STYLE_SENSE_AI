@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stylesense_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=StyleSense AI
+      - APP_ENV=production
+      - DATABASE_URL=sqlite:///./stylesense.db
+      - AI_PROVIDER=mock
+      - WEATHER_PROVIDER=mock
+      - STORAGE_PROVIDER=local
+    volumes:
+      - ./backend/stylesense.db:/app/stylesense.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stylesense_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
